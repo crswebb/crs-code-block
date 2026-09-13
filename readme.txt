@@ -2,7 +2,7 @@
 Contributors: crswebb
 Tags: classic editor, tinymce, html, blocks
 Requires at least: 5.0
-Tested up to: 6.6
+Tested up to: 7.1
 Requires PHP: 7.2
 Stable tag: 1.1.0
 License: MIT
