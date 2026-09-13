@@ -11,12 +11,24 @@ Author URI:  https://crswebb.se
 License:     MIT
 License URI: https://opensource.org/licenses/MIT
 Text Domain: crs-code-block
+Domain Path: /languages
 */
 
 if (!defined('ABSPATH')) {
     exit; // Prevent direct access.
 }
 
+if (!defined('CRS_CODE_BLOCK_VERSION')) {
+    define('CRS_CODE_BLOCK_VERSION', '1.1.0');
+}
+
+
+// Load translations.
+add_action('init', 'crs_load_textdomain');
+
+function crs_load_textdomain() {
+    load_plugin_textdomain('crs-code-block', false, dirname(plugin_basename(__FILE__)) . '/languages');
+}
 
 add_action('init', 'crs_create_block_post_type');
 
@@ -24,18 +36,18 @@ function crs_create_block_post_type() {
     register_post_type('crs_block',
         array(
             'labels' => array(
-                'name' => __('CRS Blocks'),
-                'singular_name' => __('CRS Block'),
-                'add_new' => __('Lägg till Block'), // Change the "Add New" label here
-                'add_new_item' => __('Lägg till Block'), // And here
-                'edit_item' => __('Redigera Block'), // And here
-                'new_item' => __('Nytt Block'), // And here
-                'view_item' => __('Visa Block'), // And here
-                'view_items' => __('Visa Block'), // And here
-                'search_items' => __('Sök Block'), // And here
-                'not_found' => __('Inga block hittades.'), // And here
-                'not_found_in_trash' => __('Inga block hittades i papperskorgen.'), // And here
-                'all_items' => __('Alla Blocks'), // And here
+                'name' => __('CRS Blocks', 'crs-code-block'),
+                'singular_name' => __('CRS Block', 'crs-code-block'),
+                'add_new' => __('Add Block', 'crs-code-block'),
+                'add_new_item' => __('Add Block', 'crs-code-block'),
+                'edit_item' => __('Edit Block', 'crs-code-block'),
+                'new_item' => __('New Block', 'crs-code-block'),
+                'view_item' => __('View Block', 'crs-code-block'),
+                'view_items' => __('View Blocks', 'crs-code-block'),
+                'search_items' => __('Search Blocks', 'crs-code-block'),
+                'not_found' => __('No blocks found.', 'crs-code-block'),
+                'not_found_in_trash' => __('No blocks found in the trash.', 'crs-code-block'),
+                'all_items' => __('All Blocks', 'crs-code-block'),
             ),
             'public' => true,
             'has_archive' => false,
@@ -76,7 +88,7 @@ function crs_save_html_meta_box_data($post_id) {
     }
 
     // Verify that the nonce is valid.
-    if (!wp_verify_nonce($_POST['crs_html_meta_nonce'], 'crs_save_html_meta')) {
+    if (!wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['crs_html_meta_nonce'] ) ), 'crs_save_html_meta')) {
         return;
     }
 
@@ -101,6 +113,7 @@ function crs_save_html_meta_box_data($post_id) {
     // else is restricted to post-safe HTML.
     $raw = wp_unslash($_POST['crs_block_html']);
     if (current_user_can('unfiltered_html')) {
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- raw HTML intentionally allowed for unfiltered_html-capable users; input is unslashed above
         $my_data = $raw;
     } else {
         $my_data = wp_kses_post($raw);
@@ -147,7 +160,7 @@ function crs_register_tinymce_button($buttons) {
 
 // Add TinyMCE plugin
 function crs_add_tinymce_plugin($plugin_array) {
-    $plugin_array['crs_button'] = plugin_dir_url(__FILE__) . 'button.js';
+    $plugin_array['crs_button'] = plugin_dir_url(__FILE__) . 'button.js?ver=' . CRS_CODE_BLOCK_VERSION;
     return $plugin_array;
 }
 
