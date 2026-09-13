@@ -1,0 +1,49 @@
+name: Deploy to WordPress.org
+
+# Runs when a version tag is pushed, e.g. `git tag v1.1.0 && git push origin v1.1.0`.
+# The leading `v` is stripped before deploying so WordPress.org receives a
+# numeric version (1.1.0) that matches the plugin header and readme.txt Stable tag.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  deploy:
+    name: Deploy tag to wordpress.org
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Derive numeric version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify tag matches plugin and readme versions
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          HEADER_VERSION="$(grep -ioP '^\s*Version:\s*\K[0-9.]+' crs-code-block.php | head -n1)"
+          STABLE_TAG="$(grep -oP '^Stable tag:\s*\K[0-9.]+' readme.txt | head -n1)"
+          echo "tag=$VERSION header=$HEADER_VERSION stable_tag=$STABLE_TAG"
+          if [ "$VERSION" != "$HEADER_VERSION" ] || [ "$VERSION" != "$STABLE_TAG" ]; then
+            echo "::error::Tag ($VERSION) must match plugin header Version ($HEADER_VERSION) and readme.txt Stable tag ($STABLE_TAG)."
+            exit 1
+          fi
+
+      - name: WordPress Plugin Deploy
+        id: deploy
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        with:
+          generate-zip: true
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: crs-code-block
+          VERSION: ${{ steps.version.outputs.version }}
+
+      - name: Upload release zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: crs-code-block
+          path: ${{ steps.deploy.outputs.zip-path }}

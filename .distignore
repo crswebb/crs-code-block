@@ -1,0 +1,9 @@
+# Files and directories that should NOT be deployed to the
+# WordPress.org SVN repository (the shipped plugin).
+.git
+.github
+.claude
+.distignore
+.gitignore
+.gitattributes
+README.md

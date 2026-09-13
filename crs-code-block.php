@@ -2,11 +2,20 @@
 /*
 Plugin Name: CRS Code Blocks
 Plugin URI:  https://github.com/crswebb/crs-code-block
-Description: A plugin to add/edit/remove named HTML blocks, for wordpress clasic editor.
-Version:     1.0
+Description: Add, edit, and insert named HTML blocks in the WordPress classic editor.
+Version:     1.1.0
+Requires at least: 5.0
+Requires PHP: 7.2
 Author:      CRS Webbproduktion AB
 Author URI:  https://crswebb.se
+License:     MIT
+License URI: https://opensource.org/licenses/MIT
+Text Domain: crs-code-block
 */
+
+if (!defined('ABSPATH')) {
+    exit; // Prevent direct access.
+}
 
 
 add_action('init', 'crs_create_block_post_type');
