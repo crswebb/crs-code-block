@@ -1,28 +1,39 @@
 name: Deploy to WordPress.org
 
-# Runs when a version tag is pushed, e.g. `git tag v1.1.0 && git push origin v1.1.0`.
-# The leading `v` is stripped before deploying so WordPress.org receives a
-# numeric version (1.1.0) that matches the plugin header and readme.txt Stable tag.
+# Publishes the plugin to the WordPress.org SVN repository whenever a version
+# tag (e.g. 1.1.0) is pushed. Once the plugin is live on WordPress.org, WordPress
+# core handles update checks and one-click updates natively — no bundled update
+# library needed (updates are driven by the "Stable tag" in readme.txt).
+#
+# One-time setup:
+#   1. The plugin must be approved on WordPress.org with a slug matching SLUG below.
+#   2. Add repository secrets (Settings -> Secrets and variables -> Actions):
+#        SVN_USERNAME  - your WordPress.org account username
+#        SVN_PASSWORD  - your WordPress.org account password
+#
+# Releasing:
+#   git tag 1.1.0 && git push origin 1.1.0
+#   The tag must equal the "Version:" header in crs-code-block.php and the
+#   "Stable tag:" in readme.txt (the workflow verifies this before deploying).
 on:
   push:
     tags:
-      - "v*.*.*"
+      - "[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write # create the GitHub Release and attach the built zip
 
 jobs:
   deploy:
-    name: Deploy tag to wordpress.org
+    name: Deploy to WordPress.org
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Derive numeric version from tag
-        id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-
       - name: Verify tag matches plugin and readme versions
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
+          VERSION="${GITHUB_REF_NAME}"
           HEADER_VERSION="$(grep -ioP '^\s*Version:\s*\K[0-9.]+' crs-code-block.php | head -n1)"
           STABLE_TAG="$(grep -oP '^Stable tag:\s*\K[0-9.]+' readme.txt | head -n1)"
           echo "tag=$VERSION header=$HEADER_VERSION stable_tag=$STABLE_TAG"
@@ -40,10 +51,8 @@ jobs:
           SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
           SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
           SLUG: crs-code-block
-          VERSION: ${{ steps.version.outputs.version }}
 
-      - name: Upload release zip artifact
-        uses: actions/upload-artifact@v4
+      - name: Attach zip to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: crs-code-block
-          path: ${{ steps.deploy.outputs.zip-path }}
+          files: ${{ steps.deploy.outputs.zip-path }}

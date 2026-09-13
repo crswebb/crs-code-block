@@ -1,9 +1,13 @@
-# Files and directories that should NOT be deployed to the
-# WordPress.org SVN repository (the shipped plugin).
-.git
-.github
-.claude
-.distignore
-.gitignore
-.gitattributes
-README.md
+# Files and directories that should NOT be shipped to the WordPress.org
+# SVN repository / release zip. Everything else in the plugin root is deployed.
+
+/.git
+/.github
+/.claude
+/.gitignore
+/.gitattributes
+/.distignore
+/.wordpress-org
+/node_modules
+/README.md
+/CLAUDE.md
