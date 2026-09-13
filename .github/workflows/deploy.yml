@@ -18,7 +18,7 @@ name: Deploy to WordPress.org
 on:
   push:
     tags:
-      - "[0-9]+.[0-9]+.[0-9]+"
+      - "*.*.*"
 
 permissions:
   contents: write # create the GitHub Release and attach the built zip
@@ -44,7 +44,7 @@ jobs:
 
       - name: WordPress Plugin Deploy
         id: deploy
-        uses: 10up/action-wordpress-plugin-deploy@stable
+        uses: 10up/action-wordpress-plugin-deploy@54bd289b8525fd23a5c365ec369185f2966529c2 # 2.3.0
         with:
           generate-zip: true
         env:
@@ -53,6 +53,6 @@ jobs:
           SLUG: crs-code-block
 
       - name: Attach zip to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           files: ${{ steps.deploy.outputs.zip-path }}

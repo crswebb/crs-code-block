@@ -116,8 +116,10 @@ function crs_save_html_meta_box_data($post_id) {
         $my_data = wp_kses_post($raw);
     }
 
-    // Update the meta field in the database.
-    update_post_meta($post_id, '_crs_block_html', $my_data);
+    // Update the meta field in the database. update_post_meta() unslashes its
+    // value internally, so re-slash here to preserve literal backslashes in the
+    // stored markup (e.g. in JavaScript or CSS escapes).
+    update_post_meta($post_id, '_crs_block_html', wp_slash($my_data));
 }
 
 // Add TinyMCE button
