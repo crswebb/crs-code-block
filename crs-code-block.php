@@ -23,12 +23,9 @@ if (!defined('CRS_CODE_BLOCK_VERSION')) {
 }
 
 
-// Load translations.
-add_action('init', 'crs_load_textdomain');
-
-function crs_load_textdomain() {
-    load_plugin_textdomain('crs-code-block', false, dirname(plugin_basename(__FILE__)) . '/languages');
-}
+// Translations load automatically for WordPress.org-hosted plugins (and from
+// the bundled /languages folder via the Domain Path header on WordPress 6.7+),
+// so no load_plugin_textdomain() call is needed.
 
 add_action('init', 'crs_create_block_post_type');
 
