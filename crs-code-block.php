@@ -9,17 +9,6 @@ Author URI:  https://crswebb.se
 */
 
 
-// Add admin menu
-add_action('admin_menu', 'crs_blocks_menu');
-
-function crs_blocks_menu(){
-    add_menu_page('CRS Blocks Page', 'CRS Blocks', 'manage_options', 'crs-blocks', 'crs_blocks_page' );
-}
-
-// Display the admin page
-function crs_blocks_page(){
-}
-
 add_action('init', 'crs_create_block_post_type');
 
 function crs_create_block_post_type() {
@@ -65,7 +54,7 @@ function crs_html_meta_box_callback($post) {
 
     $value = get_post_meta($post->ID, '_crs_block_html', true);
 
-    echo '<textarea id="crs_block_html" name="crs_block_html" rows="5" style="width:100%">' . esc_attr($value) . '</textarea>';
+    echo '<textarea id="crs_block_html" name="crs_block_html" rows="5" style="width:100%">' . esc_textarea($value) . '</textarea>';
 }
 
 // Save meta box content
@@ -97,8 +86,16 @@ function crs_save_html_meta_box_data($post_id) {
         return;
     }
 
-    // Sanitize user input.
-    $my_data = wp_kses_post($_POST['crs_block_html']);
+    // Unslash, then sanitize user input. Users with the unfiltered_html
+    // capability (typically admins) may store arbitrary markup — including
+    // <script>/<style> — which this plugin is meant to support; everyone
+    // else is restricted to post-safe HTML.
+    $raw = wp_unslash($_POST['crs_block_html']);
+    if (current_user_can('unfiltered_html')) {
+        $my_data = $raw;
+    } else {
+        $my_data = wp_kses_post($raw);
+    }
 
     // Update the meta field in the database.
     update_post_meta($post_id, '_crs_block_html', $my_data);
@@ -115,6 +112,19 @@ function crs_add_tinymce_button() {
 
     // Check if WYSIWYG is enabled
     if ('true' == get_user_option('rich_editing')) {
+        // button.js is loaded by TinyMCE via mce_external_plugins (correct
+        // timing and lifecycle), so it has no wp_enqueue_script handle to
+        // localize onto. Print its AJAX config inline in this already
+        // capability-/editor-guarded context instead.
+        $crs_ajax = array(
+            'url'   => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('crs_get_blocks'),
+        );
+        printf(
+            "<script type=\"text/javascript\">var crs_ajax = %s;</script>\n",
+            wp_json_encode($crs_ajax)
+        );
+
         add_filter('mce_external_plugins', 'crs_add_tinymce_plugin');
         add_filter('mce_buttons', 'crs_register_tinymce_button');
     }
@@ -132,21 +142,17 @@ function crs_add_tinymce_plugin($plugin_array) {
     return $plugin_array;
 }
 
-add_action('admin_enqueue_scripts', 'crs_enqueue_scripts');
-
-function crs_enqueue_scripts() {
-    wp_enqueue_script('crs-button', plugin_dir_url(__FILE__) . 'button.js', ['jquery'], false, true);
-    wp_localize_script('crs-button', 'crs_ajax', [
-        'url' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('crs_get_blocks'),
-    ]);
-}
-
 add_action('wp_ajax_crs_get_blocks', 'crs_get_blocks');
 
 function crs_get_blocks() {
     // Check nonce
     check_ajax_referer('crs_get_blocks');
+
+    // Check the user's permissions. A valid nonce proves request origin,
+    // not authorization, so verify the capability explicitly.
+    if (!current_user_can('edit_posts') && !current_user_can('edit_pages')) {
+        wp_send_json_error('Insufficient permissions', 403);
+    }
 
     // Get blocks
     $blocks = get_posts([
