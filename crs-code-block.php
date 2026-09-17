@@ -1,24 +1,29 @@
 <?php
 /*
-Plugin Name: CRS Code Blocks
+Plugin Name: CRS Code Block
 Plugin URI:  https://github.com/crswebb/crs-code-block
-Description: A plugin to add/edit/remove named HTML blocks, for wordpress clasic editor.
-Version:     1.0
+Description: Add, edit, and insert named HTML blocks in the WordPress classic editor.
+Version:     1.1.0
+Requires at least: 5.0
+Requires PHP: 7.2
 Author:      CRS Webbproduktion AB
 Author URI:  https://crswebb.se
+License:     MIT
+License URI: https://opensource.org/licenses/MIT
+Text Domain: crs-code-block
 */
 
-
-// Add admin menu
-add_action('admin_menu', 'crs_blocks_menu');
-
-function crs_blocks_menu(){
-    add_menu_page('CRS Blocks Page', 'CRS Blocks', 'manage_options', 'crs-blocks', 'crs_blocks_page' );
+if (!defined('ABSPATH')) {
+    exit; // Prevent direct access.
 }
 
-// Display the admin page
-function crs_blocks_page(){
+if (!defined('CRS_CODE_BLOCK_VERSION')) {
+    define('CRS_CODE_BLOCK_VERSION', '1.1.0');
 }
+
+
+// Translations are managed via translate.wordpress.org for hosted plugins, so
+// no bundled translation files or load_plugin_textdomain() call are needed.
 
 add_action('init', 'crs_create_block_post_type');
 
@@ -26,18 +31,18 @@ function crs_create_block_post_type() {
     register_post_type('crs_block',
         array(
             'labels' => array(
-                'name' => __('CRS Blocks'),
-                'singular_name' => __('CRS Block'),
-                'add_new' => __('Lägg till Block'), // Change the "Add New" label here
-                'add_new_item' => __('Lägg till Block'), // And here
-                'edit_item' => __('Redigera Block'), // And here
-                'new_item' => __('Nytt Block'), // And here
-                'view_item' => __('Visa Block'), // And here
-                'view_items' => __('Visa Block'), // And here
-                'search_items' => __('Sök Block'), // And here
-                'not_found' => __('Inga block hittades.'), // And here
-                'not_found_in_trash' => __('Inga block hittades i papperskorgen.'), // And here
-                'all_items' => __('Alla Blocks'), // And here
+                'name' => __('CRS Blocks', 'crs-code-block'),
+                'singular_name' => __('CRS Block', 'crs-code-block'),
+                'add_new' => __('Add Block', 'crs-code-block'),
+                'add_new_item' => __('Add Block', 'crs-code-block'),
+                'edit_item' => __('Edit Block', 'crs-code-block'),
+                'new_item' => __('New Block', 'crs-code-block'),
+                'view_item' => __('View Block', 'crs-code-block'),
+                'view_items' => __('View Blocks', 'crs-code-block'),
+                'search_items' => __('Search Blocks', 'crs-code-block'),
+                'not_found' => __('No blocks found.', 'crs-code-block'),
+                'not_found_in_trash' => __('No blocks found in the trash.', 'crs-code-block'),
+                'all_items' => __('All Blocks', 'crs-code-block'),
             ),
             'public' => true,
             'has_archive' => false,
@@ -65,7 +70,7 @@ function crs_html_meta_box_callback($post) {
 
     $value = get_post_meta($post->ID, '_crs_block_html', true);
 
-    echo '<textarea id="crs_block_html" name="crs_block_html" rows="5" style="width:100%">' . esc_attr($value) . '</textarea>';
+    echo '<textarea id="crs_block_html" name="crs_block_html" rows="5" style="width:100%">' . esc_textarea($value) . '</textarea>';
 }
 
 // Save meta box content
@@ -78,7 +83,7 @@ function crs_save_html_meta_box_data($post_id) {
     }
 
     // Verify that the nonce is valid.
-    if (!wp_verify_nonce($_POST['crs_html_meta_nonce'], 'crs_save_html_meta')) {
+    if (!wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['crs_html_meta_nonce'] ) ), 'crs_save_html_meta')) {
         return;
     }
 
@@ -97,11 +102,22 @@ function crs_save_html_meta_box_data($post_id) {
         return;
     }
 
-    // Sanitize user input.
-    $my_data = wp_kses_post($_POST['crs_block_html']);
+    // Unslash, then sanitize user input. Users with the unfiltered_html
+    // capability (typically admins) may store arbitrary markup — including
+    // <script>/<style> — which this plugin is meant to support; everyone
+    // else is restricted to post-safe HTML via wp_kses_post below.
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- unslashed here and sanitized below with wp_kses_post for users without unfiltered_html; raw markup intentionally allowed for those with it.
+    $raw = wp_unslash($_POST['crs_block_html']);
+    if (current_user_can('unfiltered_html')) {
+        $my_data = $raw;
+    } else {
+        $my_data = wp_kses_post($raw);
+    }
 
-    // Update the meta field in the database.
-    update_post_meta($post_id, '_crs_block_html', $my_data);
+    // Update the meta field in the database. update_post_meta() unslashes its
+    // value internally, so re-slash here to preserve literal backslashes in the
+    // stored markup (e.g. in JavaScript or CSS escapes).
+    update_post_meta($post_id, '_crs_block_html', wp_slash($my_data));
 }
 
 // Add TinyMCE button
@@ -115,6 +131,19 @@ function crs_add_tinymce_button() {
 
     // Check if WYSIWYG is enabled
     if ('true' == get_user_option('rich_editing')) {
+        // button.js is loaded by TinyMCE via mce_external_plugins (correct
+        // timing and lifecycle), so it has no wp_enqueue_script handle to
+        // localize onto. Print its AJAX config inline in this already
+        // capability-/editor-guarded context instead.
+        $crs_ajax = array(
+            'url'   => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('crs_get_blocks'),
+        );
+        printf(
+            "<script type=\"text/javascript\">var crs_ajax = %s;</script>\n",
+            wp_json_encode($crs_ajax)
+        );
+
         add_filter('mce_external_plugins', 'crs_add_tinymce_plugin');
         add_filter('mce_buttons', 'crs_register_tinymce_button');
     }
@@ -128,18 +157,8 @@ function crs_register_tinymce_button($buttons) {
 
 // Add TinyMCE plugin
 function crs_add_tinymce_plugin($plugin_array) {
-    $plugin_array['crs_button'] = plugin_dir_url(__FILE__) . 'button.js';
+    $plugin_array['crs_button'] = plugin_dir_url(__FILE__) . 'button.js?ver=' . CRS_CODE_BLOCK_VERSION;
     return $plugin_array;
-}
-
-add_action('admin_enqueue_scripts', 'crs_enqueue_scripts');
-
-function crs_enqueue_scripts() {
-    wp_enqueue_script('crs-button', plugin_dir_url(__FILE__) . 'button.js', ['jquery'], false, true);
-    wp_localize_script('crs-button', 'crs_ajax', [
-        'url' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('crs_get_blocks'),
-    ]);
 }
 
 add_action('wp_ajax_crs_get_blocks', 'crs_get_blocks');
@@ -147,6 +166,12 @@ add_action('wp_ajax_crs_get_blocks', 'crs_get_blocks');
 function crs_get_blocks() {
     // Check nonce
     check_ajax_referer('crs_get_blocks');
+
+    // Check the user's permissions. A valid nonce proves request origin,
+    // not authorization, so verify the capability explicitly.
+    if (!current_user_can('edit_posts') && !current_user_can('edit_pages')) {
+        wp_send_json_error('Insufficient permissions', 403);
+    }
 
     // Get blocks
     $blocks = get_posts([
