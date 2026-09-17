@@ -1,4 +1,4 @@
-=== CRS Code Blocks ===
+=== CRS Code Block ===
 Contributors: crswebb
 Tags: classic editor, tinymce, html, blocks
 Requires at least: 5.0
@@ -12,7 +12,7 @@ Add, edit, and insert named HTML blocks in the WordPress classic editor.
 
 == Description ==
 
-CRS Code Blocks lets editors create reusable, named HTML blocks and insert
+CRS Code Block lets editors create reusable, named HTML blocks and insert
 them into posts and pages from the classic (TinyMCE) editor toolbar.
 
 * Manage blocks as a dedicated "CRS Blocks" post type, each with a title and an HTML body.

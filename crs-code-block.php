@@ -1,6 +1,6 @@
 <?php
 /*
-Plugin Name: CRS Code Blocks
+Plugin Name: CRS Code Block
 Plugin URI:  https://github.com/crswebb/crs-code-block
 Description: Add, edit, and insert named HTML blocks in the WordPress classic editor.
 Version:     1.1.0
@@ -11,7 +11,6 @@ Author URI:  https://crswebb.se
 License:     MIT
 License URI: https://opensource.org/licenses/MIT
 Text Domain: crs-code-block
-Domain Path: /languages
 */
 
 if (!defined('ABSPATH')) {
@@ -107,10 +106,10 @@ function crs_save_html_meta_box_data($post_id) {
     // Unslash, then sanitize user input. Users with the unfiltered_html
     // capability (typically admins) may store arbitrary markup — including
     // <script>/<style> — which this plugin is meant to support; everyone
-    // else is restricted to post-safe HTML.
+    // else is restricted to post-safe HTML via wp_kses_post below.
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- unslashed here and sanitized below with wp_kses_post for users without unfiltered_html; raw markup intentionally allowed for those with it.
     $raw = wp_unslash($_POST['crs_block_html']);
     if (current_user_can('unfiltered_html')) {
-        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- raw HTML intentionally allowed for unfiltered_html-capable users; input is unslashed above
         $my_data = $raw;
     } else {
         $my_data = wp_kses_post($raw);
