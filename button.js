@@ -1,12 +1,12 @@
 (function($) {
-    tinymce.PluginManager.add('crs_button', function(editor, url) {
-        editor.addButton('crs_button', {
+    tinymce.PluginManager.add('crscb_button', function(editor, url) {
+        editor.addButton('crscb_button', {
             text: 'CRS Block',
             icon: false,
             onclick: function() {
-                $.post(crs_ajax.url, {
-                    action: 'crs_get_blocks',
-                    _ajax_nonce: crs_ajax.nonce,
+                $.post(crscb_ajax.url, {
+                    action: 'crscb_get_blocks',
+                    _ajax_nonce: crscb_ajax.nonce,
                 }).done(function(blocks) {
                     if (!blocks || !blocks.length) {
                         editor.windowManager.alert('No CRS blocks found.');
