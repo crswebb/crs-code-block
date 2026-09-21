@@ -1,0 +1,58 @@
+name: Deploy to WordPress.org
+
+# Publishes the plugin to the WordPress.org SVN repository whenever a version
+# tag (e.g. 1.1.0) is pushed. Once the plugin is live on WordPress.org, WordPress
+# core handles update checks and one-click updates natively — no bundled update
+# library needed (updates are driven by the "Stable tag" in readme.txt).
+#
+# One-time setup:
+#   1. The plugin must be approved on WordPress.org with a slug matching SLUG below.
+#   2. Add repository secrets (Settings -> Secrets and variables -> Actions):
+#        SVN_USERNAME  - your WordPress.org account username
+#        SVN_PASSWORD  - your WordPress.org account password
+#
+# Releasing:
+#   git tag 1.1.0 && git push origin 1.1.0
+#   The tag must equal the "Version:" header in crs-code-block.php and the
+#   "Stable tag:" in readme.txt (the workflow verifies this before deploying).
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+permissions:
+  contents: write # create the GitHub Release and attach the built zip
+
+jobs:
+  deploy:
+    name: Deploy to WordPress.org
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify tag matches plugin and readme versions
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          HEADER_VERSION="$(grep -ioP '^\s*Version:\s*\K[0-9.]+' crs-code-block.php | head -n1)"
+          STABLE_TAG="$(grep -oP '^Stable tag:\s*\K[0-9.]+' readme.txt | head -n1)"
+          echo "tag=$VERSION header=$HEADER_VERSION stable_tag=$STABLE_TAG"
+          if [ "$VERSION" != "$HEADER_VERSION" ] || [ "$VERSION" != "$STABLE_TAG" ]; then
+            echo "::error::Tag ($VERSION) must match plugin header Version ($HEADER_VERSION) and readme.txt Stable tag ($STABLE_TAG)."
+            exit 1
+          fi
+
+      - name: WordPress Plugin Deploy
+        id: deploy
+        uses: 10up/action-wordpress-plugin-deploy@54bd289b8525fd23a5c365ec369185f2966529c2 # 2.3.0
+        with:
+          generate-zip: true
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: crs-code-block
+
+      - name: Attach zip to GitHub Release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          files: ${{ steps.deploy.outputs.zip-path }}
